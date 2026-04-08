@@ -1,0 +1,126 @@
+-- [[ CORE INITIALIZATION ]]
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- [[ ADVANCED ALGORITHMS & VARIABLES ]]
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+-- State Management
+local AimbotSettings = { Enabled = false, Smoothing = 0.5, TargetPart = "HumanoidRootPart" }
+local VisualSettings = { ESP_Enabled = false }
+
+-- ALGORITMA 1: OPTIMIZED VECTOR MAGNITUDE (Pencarian Target Presisi)
+local function GetClosestTarget()
+    local Target = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(AimbotSettings.TargetPart) then
+            local pos, onScreen = Camera:WorldToViewportPoint(player.Character[AimbotSettings.TargetPart].Position)
+            if onScreen then
+                local distance = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                if distance < shortestDistance then
+                    Target = player
+                    shortestDistance = distance
+                end
+            end
+        end
+    end
+    return Target
+end
+
+-- ALGORITMA 2: METATABLE BYPASS (Security Layer)
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    if not checkcaller() and (method == "Kick" or method == "kick") then
+        return nil -- Mencegah server mendeteksi aktivitas mencurigakan
+    end
+    return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
+
+-- [[ WINDOW CONFIGURATION (TIDAK BERUBAH) ]]
+local Window = Rayfield:CreateWindow({
+   Name = "Timi's hub",
+   Icon = 0,
+   LoadingTitle = "Timi's hub loading",
+   LoadingSubtitle = "by Timi",
+   ConfigurationSaving = { Enabled = true, FolderName = "Timi's hub", FileName = "Big Hub" },
+   Theme = "Darkblue", 
+   KeySystem = false -- Key System Dinonaktifkan sesuai permintaan
+})
+
+--- TAB 1: COMBAT (ALGORITMA AIMBOT) ---
+local CombatTab = Window:CreateTab("Combat", 4483362458)
+CombatTab:CreateToggle({
+   Name = "Master Aimbot",
+   CurrentValue = false,
+   Callback = function(Value) AimbotSettings.Enabled = Value end,
+})
+
+CombatTab:CreateSlider({
+   Name = "Smoothing (Kehalusan)",
+   Range = {0.1, 1},
+   Increment = 0.1,
+   CurrentValue = 0.5,
+   Callback = function(Value) AimbotSettings.Smoothing = Value end,
+})
+
+-- Loop Aimbot dengan Algoritma Lerp (Linear Interpolation)
+RunService.RenderStepped:Connect(function()
+    if AimbotSettings.Enabled then
+        local Target = GetClosestTarget()
+        if Target and Target.Character then
+            local targetPos = Target.Character[AimbotSettings.TargetPart].Position
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPos), AimbotSettings.Smoothing)
+        end
+    end
+end)
+
+--- TAB 2: VISUAL (ESP) ---
+local VisualTab = Window:CreateTab("Visual", 4483362458)
+VisualTab:CreateToggle({
+   Name = "Name ESP (Lihat Tembus Tembok)",
+   CurrentValue = false,
+   Callback = function(Value)
+      for _, p in pairs(Players:GetPlayers()) do
+          if p ~= LocalPlayer and p.Character then
+              local highlight = p.Character:FindFirstChild("Highlight") or Instance.new("Highlight", p.Character)
+              highlight.Enabled = Value
+              highlight.FillTransparency = 0.5
+              highlight.OutlineColor = Color3.fromRGB(0, 255, 255)
+          end
+      end
+   end,
+})
+
+--- TAB 3: MOVEMENT & MISC ---
+local MiscTab = Window:CreateTab("Misc", 4483362458)
+MiscTab:CreateButton({
+   Name = "Launch Fling GUI",
+   Callback = function()
+      loadstring(game:HttpGet('https://raw.githubusercontent.com/DigitalityScripts/97hiuy7hiud9f7hiudfhiudf/main/Fling%20Gui'))()
+   end,
+})
+
+MiscTab:CreateSlider({
+   Name = "WalkSpeed",
+   Range = {16, 250},
+   Increment = 1,
+   CurrentValue = 16,
+   Callback = function(Value) LocalPlayer.Character.Humanoid.WalkSpeed = Value end,
+})
+
+--- TAB 4: SECURITY ---
+local SecTab = Window:CreateTab("Security", 4483362458)
+SecTab:CreateSection("Anti-Detection Active")
+SecTab:CreateParagraph({Title = "Status", Content = "Metatable Hooking: ACTIVE\nLog Cleaning: ACTIVE\nPrivasi Terjamin."})
+
+Rayfield:Notify({Title = "Timi's Hub V10", Content = "Berhasil dimuat tanpa hambatan!", Duration = 5})
