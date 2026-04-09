@@ -124,3 +124,63 @@ SecTab:CreateSection("Anti-Detection Active")
 SecTab:CreateParagraph({Title = "Status", Content = "Metatable Hooking: ACTIVE\nLog Cleaning: ACTIVE\nPrivasi Terjamin."})
 
 Rayfield:Notify({Title = "Timi's Hub V10", Content = "Berhasil dimuat tanpa hambatan!", Duration = 5})
+
+
+-- Nama pemain yang ingin kamu datangi (Ganti sesuai keinginan)
+local targetName = "NamaPemainTarget" 
+
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+local function teleportToPlayer(playerName)
+    -- Mencari pemain di dalam folder Players
+    local targetPlayer = Players:FindFirstChild(playerName)
+    
+    if targetPlayer and targetPlayer.Character then
+        local myCharacter = localPlayer.Character
+        local targetCharacter = targetPlayer.Character
+        
+        -- Mencari HumanoidRootPart masing-masing
+        local myHRP = myCharacter:FindFirstChild("HumanoidRootPart")
+        local targetHRP = targetCharacter:FindFirstChild("HumanoidRootPart")
+        
+        if myHRP and targetHRP then
+            -- Memindahkan kamu ke posisi target
+            myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 3)
+            print("Berhasil teleport ke: " .. playerName)
+        else
+            warn("HumanoidRootPart tidak ditemukan.")
+        end
+    else
+        warn("Pemain tidak ditemukan atau karakternya belum ada.")
+    end
+end
+
+-- Menjalankan fungsi
+teleportToPlayer(targetName)
+
+
+-- CONFIG
+local targetPlayerName = "NamaPemainTarget" -- Ganti dengan nama target
+
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+local function teleport()
+    local targetPlayer = Players:FindFirstChild(targetPlayerName)
+    
+    if targetPlayer and targetPlayer.Character and localPlayer.Character then
+        local myHRP = localPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        
+        if myHRP and targetHRP then
+            -- Memindahkan kamu ke target (offset 3 studs di belakang)
+            myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, 3)
+            print("Teleport berhasil ke " .. targetPlayerName)
+        end
+    else
+        warn("Target tidak ditemukan atau karakter belum spawn.")
+    end
+end
+
+teleport()
