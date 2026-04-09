@@ -1,18 +1,21 @@
 -- [[ CORE INITIALIZATION ]]
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- [[ ADVANCED ALGORITHMS & VARIABLES ]]
+-- [[ SERVICES & VARIABLES ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
--- State Management
+-- State Management (Penyimpanan Status)
 local AimbotSettings = { Enabled = false, Smoothing = 0.5, TargetPart = "HumanoidRootPart" }
 local KillerSettings = { AutoKiller = false, AttackSpeed = 0.1, TargetName = "NamaPemainTarget" }
+local RecoilSettings = { Enabled = false, Amount = 3, Speed = 0.05, Recovery = 2, RecovSpeed = 0.2 }
 
--- ALGORITMA 1: OPTIMIZED VECTOR MAGNITUDE
+-- [[ ALGORITMA 1: TARGETING & UTILS ]]
 local function GetClosestTarget()
     local Target = nil
     local shortestDistance = math.huge
@@ -31,7 +34,6 @@ local function GetClosestTarget()
     return Target
 end
 
--- ALGORITMA KILLER: MENCARI HOOK TERDEKAT
 local function GetClosestHook()
     local closestHook = nil
     local dist = math.huge
@@ -50,12 +52,144 @@ local function GetClosestHook()
     return closestHook
 end
 
--- ALGORITMA 2: METATABLE BYPASS
+-- [[ ALGORITMA 2: REALISTIC RECOIL SYSTEM ]]
+local function applyRecoil()
+    if not RecoilSettings.Enabled then return end
+    
+    local recoilGoal = {
+        CFrame = Camera.CFrame * CFrame.Angles(math.rad(RecoilSettings.Amount), math.rad(math.random(-1,1)), 0)
+    }
+    local tweenInfo = TweenInfo.new(RecoilSettings.Speed, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(Camera, tweenInfo, recoilGoal)
+    tween:Play()
+
+    task.wait(RecoilSettings.Speed)
+    
+    local recoveryGoal = {
+        CFrame = Camera.CFrame * CFrame.Angles(math.rad(-RecoilSettings.Recovery), 0, 0)
+    }
+    local recoveryTweenInfo = TweenInfo.new(RecoilSettings.RecovSpeed, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+    TweenService:Create(Camera, recoveryTweenInfo, recoveryGoal):Play()
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        applyRecoil()
+    end
+end)
+
+-- [[ ALGORITMA 3: SECURITY BYPASS ]]
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
 mt.__namecall = newcclosure(function(self, ...)
     local method = getnamecallmethod()
     if not checkcaller() and (method == "Kick" or method == "kick") then return nil end
-    return oldNamecall(self
+    return oldNamecall(self, ...)
+end)
+setreadonly(mt, true)
 
+-- [[ WINDOW CONFIGURATION ]]
+local Window = Rayfield:CreateWindow({
+   Name = "Timi's Hub | Ultimate Edition",
+   LoadingTitle = "Timi's Hub Loading...",
+   ConfigurationSaving = { Enabled = true, FolderName = "TimisHub" },
+   Theme = "Darkblue",
+   KeySystem = false 
+})
+
+--- TAB 1: KILLER MODE ---
+local KillerTab = Window:CreateTab("Killer Mode", 4483362458)
+KillerTab:CreateInput({
+   Name = "Target Player Name",
+   PlaceholderText = "Nama musuh...",
+   Callback = function(Text) KillerSettings.TargetName = Text end,
+})
+KillerTab:CreateToggle({
+   Name = "Auto TP + Hit + Hook",
+   CurrentValue = false,
+   Callback = function(Value) KillerSettings.AutoKiller = Value end,
+})
+
+--- TAB 2: COMBAT & RECOIL ---
+local CombatTab = Window:CreateTab("Combat", 4483362458)
+CombatTab:CreateToggle({
+   Name = "Master Aimbot",
+   CurrentValue = false,
+   Callback = function(Value) AimbotSettings.Enabled = Value end,
+})
+CombatTab:CreateToggle({
+   Name = "Realistic Recoil",
+   CurrentValue = false,
+   Callback = function(Value) RecoilSettings.Enabled = Value end,
+})
+CombatTab:CreateSlider({
+   Name = "Recoil Strength",
+   Range = {1, 10},
+   Increment = 1,
+   CurrentValue = 3,
+   Callback = function(Value) RecoilSettings.Amount = Value end,
+})
+
+--- TAB 3: VISUAL ---
+local VisualTab = Window:CreateTab("Visual", 4483362458)
+VisualTab:CreateToggle({
+   Name = "Highlight ESP",
+   CurrentValue = false,
+   Callback = function(Value)
+      for _, p in pairs(Players:GetPlayers()) do
+          if p ~= LocalPlayer and p.Character then
+              local h = p.Character:FindFirstChild("Highlight") or Instance.new("Highlight", p.Character)
+              h.Enabled = Value
+          end
+      end
+   end,
+})
+
+--- LOOPS ---
+-- Loop Aimbot
+RunService.RenderStepped:Connect(function()
+    if AimbotSettings.Enabled then
+        local Target = GetClosestTarget()
+        if Target and Target.Character then
+            local targetPos = Target.Character[AimbotSettings.TargetPart].Position
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPos), AimbotSettings.Smoothing)
+        end
+    end
+end)
+
+-- Loop Killer
+task.spawn(function()
+    while true do
+        task.wait(KillerSettings.AttackSpeed)
+        if KillerSettings.AutoKiller then
+            pcall(function()
+                local targetPlayer = Players:FindFirstChild(KillerSettings.TargetName)
+                if targetPlayer and targetPlayer.Character and LocalPlayer.Character then
+                    local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local targetHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local targetHum = targetPlayer.Character:FindFirstChild("Humanoid")
+
+                    if myHRP and targetHRP then
+                        if targetHum and targetHum.Health <= 15 then
+                            local hook = GetClosestHook()
+                            if hook then
+                                local hookPos = hook:IsA("Model") and hook:GetModelCFrame() or hook.CFrame
+                                myHRP.CFrame = hookPos * CFrame.new(0, 5, 0)
+                            end
+                        else
+                            myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, -2.5)
+                            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                            if tool then tool:Activate() end
+                            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("Attack") or game:GetService("ReplicatedStorage"):FindFirstChild("Hit")
+                            if remote then remote:FireServer(targetPlayer.Character) end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+Rayfield:Notify({Title = "Timi's Hub V10", Content = "Semua fitur berhasil digabungkan!", Duration = 5})
