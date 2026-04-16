@@ -1,166 +1,107 @@
--- [[ TIMI'S HUB V11 - XENO OPTIMIZED EDITION ]]
+-- [[ TIMI'S HUB V12 - XENO ULTRA LIGHT & FIXED GOD ]]
 
--- Cek apakah Executor mendukung fungsi dasar
-if not fireclickdetector then
-    print("Xeno Warning: Beberapa fungsi mungkin terbatas, tapi script tetap dijalankan.")
-end
+-- Optimasi Xeno: Mematikan render yang tidak perlu saat execute
+if not game:IsLoaded() then game.Loaded:Wait() end
 
 -- [[ CORE INITIALIZATION ]]
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
--- [[ SERVICES & VARIABLES ]]
+-- [[ SERVICES ]]
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
 
--- State Management
-local AimbotSettings = { Enabled = false, Smoothing = 0.4, TargetPart = "HumanoidRootPart" }
-local KillerSettings = { AutoKiller = false, AttackSpeed = 0.05, TargetName = "Target" }
-local RecoilSettings = { Enabled = false, Amount = 4, Speed = 0.05, Recovery = 2.5, RecovSpeed = 0.2 }
-local WeaponSettings = { NoReload = false }
-local DefenseSettings = { GodMode = false, AntiRagdoll = false }
+-- State Management (Dibuat sesedikit mungkin agar hemat RAM)
+local Settings = {
+    Aimbot = false,
+    Killer = false,
+    NoReload = false,
+    GodMode = false,
+    TargetName = ""
+}
 
--- [[ ALGORITMA 1: TARGETING ENGINE (XENO OPTIMIZED) ]]
-local function GetClosestTarget()
-    local Target = nil
-    local shortestDistance = math.huge
-    
-    -- Menggunakan pcall agar tidak crash jika player left tiba-tiba
-    pcall(function()
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(AimbotSettings.TargetPart) then
-                local pos, onScreen = Camera:WorldToViewportPoint(player.Character[AimbotSettings.TargetPart].Position)
-                if onScreen then
-                    local distance = (Vector2.new(pos.X, pos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                    if distance < shortestDistance then
-                        Target = player
-                        shortestDistance = distance
-                    end
-                end
-            end
-        end
-    end)
-    return Target
-end
-
--- [[ ALGORITMA 2: ADVANCED GOD MODE ]]
+-- [[ FIX GOD MODE: DESYNC METHOD ]]
+-- Lebih stabil dari destroy neck, tidak bikin karakter nyangkut
 local function ToggleGodMode(state)
+    Settings.GodMode = state
     local char = LocalPlayer.Character
-    if state and char then
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            -- Mencegah kematian saat neck dihancurkan
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-            task.defer(function() -- Menggunakan defer agar Xeno tidak lag saat penghancuran part
-                if char:FindFirstChild("Head") and char.Head:FindFirstChild("Neck") then
-                    char.Head.Neck:Destroy()
-                end
-            end)
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if hum then
+        if state then
+            -- Mematikan state yang meregistrasi damage/kematian
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+            hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+            hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+        else
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+            Rayfield:Notify({Title = "Status", Content = "Reset karakter untuk menormalkan Hitbox.", Duration = 3})
         end
-    else
-        Rayfield:Notify({Title = "God Mode Info", Content = "Silakan Reset Character untuk kembali normal.", Duration = 5})
     end
 end
 
--- [[ ALGORITMA 3: XENO SECURITY BYPASS ]]
--- Menggunakan sistem hooking yang lebih 'ringan' agar tidak crash di mode Legacy
+-- [[ SECURITY: LIGHTWEIGHT BYPASS ]]
 local success, err = pcall(function()
     local mt = getrawmetatable(game)
-    local oldNamecall = mt.__namecall
     setreadonly(mt, false)
-    
+    local old = mt.__namecall
     mt.__namecall = newcclosure(function(self, ...)
         local method = getnamecallmethod()
-        if not checkcaller() then
-            if method == "Kick" or method == "kick" then return nil end
-            if method == "BreakJoints" then return nil end
+        if not checkcaller() and (method == "Kick" or method == "kick") then 
+            return nil 
         end
-        return oldNamecall(self, ...)
+        return old(self, ...)
     end)
     setreadonly(mt, true)
 end)
 
--- [[ WINDOW CONFIGURATION ]]
+-- [[ WINDOW ]]
 local Window = Rayfield:CreateWindow({
-   Name = "Timi's Hub | V11 XENO",
-   LoadingTitle = "Optimizing for Xeno Exploit...",
-   ConfigurationSaving = { Enabled = true, FolderName = "TimisHubXeno" },
+   Name = "Timi Hub V12 | Xeno Lite",
+   LoadingTitle = "Xeno Legacy Optimized",
+   ConfigurationSaving = { Enabled = false }, -- Dimatikan agar lebih ringan
    Theme = "Darkblue",
    KeySystem = false 
 })
 
---- TAB: COMBAT ---
-local MainTab = Window:CreateTab("Combat", 4483362458)
+local MainTab = Window:CreateTab("Main", 4483362458)
+
 MainTab:CreateInput({
-   Name = "Target Player",
-   PlaceholderText = "Ketik Nama...",
-   Callback = function(Text) KillerSettings.TargetName = Text end,
-})
-MainTab:CreateToggle({
-   Name = "Auto Annihilate",
-   CurrentValue = false,
-   Callback = function(Value) KillerSettings.AutoKiller = Value end,
-})
-MainTab:CreateToggle({
-   Name = "No Reload (Advanced)",
-   CurrentValue = false,
-   Callback = function(Value) WeaponSettings.NoReload = Value end,
-})
-MainTab:CreateToggle({
-   Name = "Master Aimbot",
-   CurrentValue = false,
-   Callback = function(Value) AimbotSettings.Enabled = Value end,
+   Name = "Target Name",
+   PlaceholderText = "Target...",
+   Callback = function(Text) Settings.TargetName = Text end,
 })
 
---- TAB: DEFENSE ---
-local DefTab = Window:CreateTab("Defense", 4483362458)
-DefTab:CreateToggle({
-   Name = "Ultimate God Mode",
+MainTab:CreateToggle({
+   Name = "Auto Killer (TP + Hit)",
+   CurrentValue = false,
+   Callback = function(Value) Settings.Killer = Value end,
+})
+
+MainTab:CreateToggle({
+   Name = "Non-Visual God Mode",
    CurrentValue = false,
    Callback = function(Value) ToggleGodMode(Value) end,
 })
-DefTab:CreateButton({
-   Name = "Fix Ragdoll (Anti-Stun)",
-   Callback = function()
-       local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-       if hum then
-           hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-           hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-       end
-   end,
+
+MainTab:CreateToggle({
+   Name = "No Reload (Safe Mode)",
+   CurrentValue = false,
+   Callback = function(Value) Settings.NoReload = Value end,
 })
 
---- TAB: SETTINGS ---
-local SetTab = Window:CreateTab("Settings", 4483362458)
-SetTab:CreateSlider({
-   Name = "WalkSpeed",
-   Range = {16, 300},
-   Increment = 1,
-   CurrentValue = 16,
-   Callback = function(Value) 
-       if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-           LocalPlayer.Character.Humanoid.WalkSpeed = Value 
-       end
-   end,
-})
+--- LOOPS (OPTIMIZED WITH TASK.WAIT) ---
 
--- [[ CORE LOOPS (XENO SENSITIVE TUNING) ]]
-
--- Loop No Reload
+-- Loop No Reload (Diperambat ke 1 detik agar Xeno Legacy tidak overheat)
 task.spawn(function()
     while true do
-        task.wait(0.8) -- Sedikit diperlambat agar Xeno Legacy tidak lag
-        if WeaponSettings.NoReload and getgc then
+        task.wait(1)
+        if Settings.NoReload and getgc then
             pcall(function()
                 for _, v in pairs(getgc(true)) do
-                    if type(v) == "table" then
-                        if rawget(v, "Ammo") then rawset(v, "Ammo", 999) end
-                        if rawget(v, "StoredAmmo") then rawset(v, "StoredAmmo", 999) end
+                    if type(v) == "table" and rawget(v, "Ammo") then
+                        rawset(v, "Ammo", 999)
                     end
                 end
             end)
@@ -168,11 +109,39 @@ task.spawn(function()
     end
 end)
 
--- Loop Killer
+-- Loop Killer (Focus pada efisiensi)
 task.spawn(function()
     while true do
-        task.wait(KillerSettings.AttackSpeed)
-        if KillerSettings.AutoKiller then
+        task.wait(0.1) -- Sedikit delay agar tidak dianggap spam oleh server
+        if Settings.Killer then
             pcall(function()
-                local target = Players:FindFirstChild(KillerSettings.TargetName)
-                if
+                local target = Players:FindFirstChild(Settings.TargetName)
+                if target and target.Character and LocalPlayer.Character then
+                    local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local enHRP = target.Character:FindFirstChild("HumanoidRootPart")
+                    
+                    if myHRP and enHRP and target.Character.Humanoid.Health > 0 then
+                        myHRP.CFrame = enHRP.CFrame * CFrame.new(0, 0, -3)
+                        local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                        if tool then tool:Activate() end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Loop God Mode Protection (Mencegah kematian mendadak)
+RunService.Heartbeat:Connect(function()
+    if Settings.GodMode then
+        pcall(function()
+            local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 and hum.Health < 20 then
+                -- Menjaga HP tidak menyentuh angka 0 secara lokal
+                hum.Health = 100 
+            end
+        end)
+    end
+end)
+
+Rayfield:Notify({Title = "Ready", Content = "Timi Hub V12 Lite Loaded!", Duration = 3})
